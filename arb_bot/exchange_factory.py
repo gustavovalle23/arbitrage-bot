@@ -1,4 +1,8 @@
+import logging
+
 import ccxt.async_support as ccxt
+
+logger = logging.getLogger("arb")
 
 
 async def create_exchanges(config):
@@ -8,6 +12,7 @@ async def create_exchanges(config):
         if not e.enabled:
             continue
 
+        logger.info("Connecting to %s (sandbox=%s)", e.id, e.sandbox)
         cls = getattr(ccxt, e.id)
         opts = {"enableRateLimit": True}
 
@@ -23,12 +28,13 @@ async def create_exchanges(config):
             ex.set_sandbox_mode(True)
 
         await ex.load_markets()
-
+        logger.info("%s ready (%d markets)", e.id, len(ex.markets))
         result[e.id] = ex
 
     return result
 
 
 async def close_exchanges(exchanges):
-    for e in exchanges.values():
-        await e.close()
+    for name in exchanges:
+        logger.debug("Closing %s", name)
+        await exchanges[name].close()

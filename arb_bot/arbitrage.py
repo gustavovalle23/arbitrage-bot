@@ -1,6 +1,8 @@
-
+import logging
 from decimal import Decimal
 from itertools import combinations
+
+logger = logging.getLogger("arb")
 
 
 def fee(v, bps):
@@ -48,6 +50,7 @@ def find_opportunities(books, config):
     for b in books:
         grouped.setdefault(b.symbol, []).append(b)
 
+    logger.debug("Scanning %d symbols with %d books total", len(grouped), len(books))
     for symbol, venues in grouped.items():
         for a, b in combinations(venues, 2):
             o1 = check(a, b, symbol, config)
@@ -59,6 +62,8 @@ def find_opportunities(books, config):
                 out.append(o2)
 
     out.sort(key=lambda x: x["profit_bps"], reverse=True)
+    if out:
+        logger.debug("Found %d opportunities for %s", len(out), ", ".join(f"{o['buy']}->{o['sell']}" for o in out[:5]))
 
     return out
 

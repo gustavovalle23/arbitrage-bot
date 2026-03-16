@@ -20,6 +20,7 @@ def norm(levels):
 
 async def fetch_books(exchanges, config):
     books = []
+    logger.debug("Fetching order books for %s from %s", config.symbols, list(exchanges.keys()))
 
     for name, ex in exchanges.items():
         for symbol in config.symbols:
@@ -40,4 +41,5 @@ async def fetch_books(exchanges, config):
                 )
             )
 
+    logger.debug("Fetched %d order books total", len(books))
     return books

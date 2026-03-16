@@ -9,6 +9,12 @@ from logger import setup_logger
 
 async def run(config):
     logger = setup_logger()
+    logger.info(
+        "Starting arb bot: exchanges=%s symbols=%s poll_interval=%ss",
+        [e.id for e in config.exchanges if e.enabled],
+        config.symbols,
+        config.poll_interval_seconds,
+    )
     exchanges = await create_exchanges(config)
 
     stop = asyncio.Event()
@@ -20,17 +26,30 @@ async def run(config):
         except NotImplementedError:
             pass
 
+    cycle = 0
     try:
         while not stop.is_set():
+            cycle += 1
+            logger.debug("Cycle %d: fetching order books", cycle)
             books = await fetch_books(exchanges, config)
-            opportunities = find_opportunities(books, config)
+            logger.info("Fetched %d books from %d exchanges", len(books), len(exchanges))
 
-            for o in opportunities:
-                logger.info(o)
+            opportunities = find_opportunities(books, config)
+            if opportunities:
+                logger.info("Found %d opportunity(ies) above %s bps", len(opportunities), config.min_net_profit_bps)
+                for o in opportunities:
+                    logger.info(
+                        "Opportunity: %s buy@%s sell@%s profit_bps=%s profit_quote=%s",
+                        o["symbol"], o["buy"], o["sell"], o["profit_bps"], o["profit_quote"],
+                    )
+            else:
+                logger.debug("No opportunities this round")
 
             await asyncio.sleep(float(config.poll_interval_seconds))
     finally:
+        logger.info("Shutting down, closing exchanges")
         await close_exchanges(exchanges)
+        logger.info("Exchanges closed, exit")
 
 
 def main():
