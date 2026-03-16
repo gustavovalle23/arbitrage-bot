@@ -63,6 +63,13 @@ def find_opportunities(books, config):
     return out
 
 
+def _fee_bps_for_exchange(config, exchange_id):
+    for e in config.exchanges:
+        if e.id == exchange_id:
+            return e.fee_bps
+    return Decimal("0")
+
+
 def check(buy, sell, symbol, config):
     quote = symbol.split("/")[1]
     capital = config.capital_by_quote.get(quote)
@@ -77,10 +84,8 @@ def check(buy, sell, symbol, config):
 
     received = sell_depth(sell.bids, base)
 
-    gross = received - spent
-
-    buy_fee = fee(spent, next(e.fee_bps for e in config.exchanges if e.id == buy.exchange))
-    sell_fee = fee(received, next(e.fee_bps for e in config.exchanges if e.id == sell.exchange))
+    buy_fee = fee(spent, _fee_bps_for_exchange(config, buy.exchange))
+    sell_fee = fee(received, _fee_bps_for_exchange(config, sell.exchange))
 
     net = received - sell_fee - spent - buy_fee
 
