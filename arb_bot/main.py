@@ -34,7 +34,7 @@ async def run(config):
             books = await fetch_books(exchanges, config)
             logger.info("Fetched %d books from %d exchanges", len(books), len(exchanges))
 
-            opportunities = find_opportunities(books, config)
+            opportunities, all_candidates = find_opportunities(books, config)
             if opportunities:
                 logger.info("Found %d opportunity(ies) above %s bps", len(opportunities), config.min_net_profit_bps)
                 for o in opportunities:
@@ -42,8 +42,17 @@ async def run(config):
                         "Opportunity: %s buy@%s sell@%s profit_bps=%s profit_quote=%s",
                         o["symbol"], o["buy"], o["sell"], o["profit_bps"], o["profit_quote"],
                     )
+            elif all_candidates:
+                best = all_candidates[0]
+                worst = all_candidates[-1]
+                logger.info(
+                    "No opportunities (threshold=%s bps). Best: %s buy@%s sell@%s net %s bps, PnL %s | Worst: %s bps, PnL %s",
+                    config.min_net_profit_bps,
+                    best["symbol"], best["buy"], best["sell"], best["bps"], best["profit_quote"],
+                    worst["bps"], worst["profit_quote"],
+                )
             else:
-                logger.debug("No opportunities this round")
+                logger.info("No order book pairs to check (no candidates).")
 
             await asyncio.sleep(float(config.poll_interval_seconds))
     finally:

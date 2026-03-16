@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from decimal import Decimal
 from models import VenueBook
@@ -18,28 +19,38 @@ def norm(levels):
     return out
 
 
+async def _fetch_one(name, ex, symbol, limit):
+    """Fetch a single order book. Returns VenueBook or None on failure."""
+    try:
+        ob = await ex.fetch_order_book(symbol, limit)
+        return VenueBook(
+            exchange=name,
+            symbol=symbol,
+            asks=norm(ob["asks"]),
+            bids=norm(ob["bids"]),
+        )
+    except Exception as e:
+        logger.warning("Failed to fetch %s %s: %s", name, symbol, e)
+        return None
+
+
 async def fetch_books(exchanges, config):
-    books = []
     logger.debug("Fetching order books for %s from %s", config.symbols, list(exchanges.keys()))
 
+    tasks = []
     for name, ex in exchanges.items():
         for symbol in config.symbols:
             if symbol not in ex.markets:
                 continue
-            try:
-                ob = await ex.fetch_order_book(symbol, config.orderbook_limit)
-            except Exception as e:
-                logger.warning("Failed to fetch %s %s: %s", name, symbol, e)
-                continue
+            tasks.append(_fetch_one(name, ex, symbol, config.orderbook_limit))
 
-            books.append(
-                VenueBook(
-                    exchange=name,
-                    symbol=symbol,
-                    asks=norm(ob["asks"]),
-                    bids=norm(ob["bids"])
-                )
-            )
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    books = []
+    for r in results:
+        if isinstance(r, VenueBook):
+            books.append(r)
+        elif isinstance(r, Exception):
+            logger.warning("Fetch error: %s", r)
 
     logger.debug("Fetched %d order books total", len(books))
     return books

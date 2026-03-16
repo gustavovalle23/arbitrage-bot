@@ -44,7 +44,9 @@ def sell_depth(bids, amount):
 
 
 def find_opportunities(books, config):
-    out = []
+    """Returns (accepted_opportunities, all_candidates). all_candidates includes every checked pair with net bps and profit/loss."""
+    accepted = []
+    all_candidates = []
 
     grouped = {}
     for b in books:
@@ -56,16 +58,19 @@ def find_opportunities(books, config):
             o1 = check(a, b, symbol, config)
             o2 = check(b, a, symbol, config)
 
-            if o1:
-                out.append(o1)
-            if o2:
-                out.append(o2)
+            for o in (o1, o2):
+                if o is None:
+                    continue
+                all_candidates.append(o)
+                if o.get("accepted"):
+                    accepted.append(o)
 
-    out.sort(key=lambda x: x["profit_bps"], reverse=True)
-    if out:
-        logger.debug("Found %d opportunities for %s", len(out), ", ".join(f"{o['buy']}->{o['sell']}" for o in out[:5]))
+    accepted.sort(key=lambda x: x["bps"], reverse=True)
+    all_candidates.sort(key=lambda x: x["bps"], reverse=True)
+    if accepted:
+        logger.debug("Found %d opportunities for %s", len(accepted), ", ".join(f"{o['buy']}->{o['sell']}" for o in accepted[:5]))
 
-    return out
+    return accepted, all_candidates
 
 
 def _fee_bps_for_exchange(config, exchange_id):
@@ -98,14 +103,15 @@ def check(buy, sell, symbol, config):
         return None
 
     bps = (net / spent) * Decimal("10000")
-
-    if bps < config.min_net_profit_bps:
-        return None
+    accepted = bps >= config.min_net_profit_bps
 
     return {
         "symbol": symbol,
         "buy": buy.exchange,
         "sell": sell.exchange,
         "profit_quote": str(net),
-        "profit_bps": str(bps)
+        "profit_bps": str(bps),
+        "bps": float(bps),
+        "net": net,
+        "accepted": accepted,
     }
