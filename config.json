@@ -1,0 +1,23 @@
+{
+    "poll_interval_seconds": 2,
+    "min_net_profit_bps": 30,
+    "orderbook_limit": 20,
+    "max_concurrent_requests": 20,
+    "symbols": [
+        "BTC/USDT",
+        "ETH/USDT"
+    ],
+    "capital_by_quote": {
+        "USDT": 1000
+    },
+    "exchanges": [
+        {
+            "id": "kraken",
+            "fee_bps": 26
+        },
+        {
+            "id": "coinbase",
+            "fee_bps": 60
+        }
+    ]
+}
